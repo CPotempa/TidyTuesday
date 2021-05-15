@@ -1,0 +1,38 @@
+---
+title: "broadband"
+author: "Christoph Potempa"
+date: "15.05.2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load some packages
+
+```{r}
+library(tidyverse)
+```
+
+### Get the data
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# Get the Data
+
+# Or read in the data manually
+
+broadband <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-11/broadband.csv')
+```
+
+### Understanding the data
+
+```{r}
+head(broadband)
+broadband$availability <- as.numeric(broadband$`BROADBAND AVAILABILITY PER FCC`)
+```
+
+```{r}
+mean(broadband$availability, na.rm=TRUE)
+```
+
