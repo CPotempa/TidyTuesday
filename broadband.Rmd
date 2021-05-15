@@ -17,6 +17,7 @@ library(tidytuesdayR)
 library(scales)
 library(tidycensus)
 library(readxl)
+library(maps)
 ```
 
 ### Get the data
@@ -56,12 +57,19 @@ county_population <- read_excel("co-est2019-annres.xlsx", skip = 3) %>%
 broadband_with_population <- broadband_county %>% 
   inner_join(county_population, by = c("county_name")) 
 
-broadband_with_population %>% 
-  arrange(desc(population_2017)) %>% 
-  head(25) %>% 
-ggplot(aes(population_2017, county_name)) +
-  geom_col()
 ```
 
+### Map
+
+```{r}
+AllCounty <- map_data("county")
+
+AllCounty <- AllCounty %>% 
+  rename(state_name = region)
+
+ggplot() + geom_polygon(data=AllCounty, aes(x=long, y=lat, group=group),
+                color="darkblue", fill="lightblue", size = .1 )
+
+```
 
 
