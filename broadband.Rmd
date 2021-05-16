@@ -13,12 +13,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 library(tidyverse)
-library(tidytuesdayR)
-library(scales)
 library(tidycensus)
-library(readxl)
+library(ggtext)
+library(here)
+library(janitor)
 library(tigris)
-library(maps)
+library(sf)
+library(albersusa)
+library(zipcodeR)
+library(stringr)
+library(extrafont)
+library(ggpubr)
 ```
 
 ### Get the data
@@ -26,54 +31,126 @@ library(maps)
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 broadband <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-11/broadband.csv')
 broadband_zip  <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-11/broadband_zip.csv')
+
+census_api_key("e3ce7489c6a678366869267d121bedc4c7b26084")
 ```
 
 ### Cleaning the Data
 
-```{r}
-broadband_county <- broadband %>% 
-  janitor::clean_names() %>% 
-  rename (state = st) %>% 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Clean data
+broadband_zip <- broadband_zip %>% 
+  clean_names() %>% 
+  rename(state = st,
+         fips = county_id) %>% 
+  mutate(zipcode = postal_code,
+         zipcode = case_when(zipcode < 9999 ~ str_c("0",as.character(zipcode)), 
+                          TRUE ~ as.character(zipcode)),
+         fips = case_when(fips < 9999 ~ str_c("0",as.character(fips)), 
+                             TRUE ~ as.character(fips)),
+         state = state.name[match(state, state.abb)])
+
+# Get zipcode info
+zipinfo <- zip_code_db %>%
+  select(zipcode, county, state, population) %>% 
+  rename(county_name = county) %>% 
   mutate(state = state.name[match(state, state.abb)])
 
-broadband_zip <- broadband_zip %>% 
-  janitor::clean_names() %>% 
-  rename(state = st) %>% 
-  view()
-  
+# Join data
+broadband_join <- broadband_zip %>% 
+  inner_join(zipinfo %>% select(-county_name, -state), 
+             by = c("zipcode"))
+
+# Load county shapefile
+county_map <- albersusa::counties_sf() %>% 
+  mutate(fips = as.character(fips))
+
+# Join shapefile and broadband data
+
+county_map <- county_map %>% 
+  geo_join(broadband_join, by_df = "fips", by_sp = "fips")
+
+
+#income data
+vt <- get_acs(geography = "county", 
+              variables = c(medincome = "B19013_001"),
+              year = 2018)
+
+vt <- vt %>% 
+  rename(fips = GEOID)
+
+
+county_map <- county_map %>% 
+  geo_join(vt, by_df = "fips", by_sp = "fips")
+
+
+# Set theme
+background <- "white"
+text_colour <- "black"
+axis_colour <- "black"
+plot_colour <- "black"
+theme_style <- theme(rect = element_rect(fill = background),
+                     plot.background = element_rect(fill = background, color = NA),
+                     plot.caption = element_markdown(size = 10, colour = text_colour),
+                     panel.background = element_rect(fill = background, color = NA),
+                     plot.margin = unit(c(1, 1, 1, 1), "cm"),
+                     panel.border = element_blank(),
+                     panel.grid.major.y = element_blank(),
+                     panel.grid.major.x = element_blank(),
+                     panel.grid.minor.x = element_blank(),
+                     axis.title = element_blank(),
+                     axis.text = element_blank(),
+                     axis.ticks = element_blank(),
+                     axis.line = element_blank(),
+                     legend.text = element_text(size = 8, colour= text_colour),
+                     legend.title = element_blank(),
+                     legend.position="right",
+                     panel.spacing = unit(2, "lines"))
+
+theme_set(theme_classic() + theme_style)
+
+
+# Plot data
+ggplot() +
+  geom_sf(data = county_map, 
+          aes(fill = broadband_usage),
+          color = "#738290", 
+          size = 0.05) +
+     scale_fill_gradient2(low = 'white', high = '#276fe3',
+                        breaks = c(0,.2,.4,.6,.8), 
+                        labels = c("0%", "20%","40%","60%", "80%"))+
+  labs(title = "US Broadband Availablity",
+       subtitle = "Percentage of availability at a county level")
+
+ggplot() +
+  geom_sf(data = county_map, 
+          aes(fill = estimate),
+          color = "#738290", 
+          size = 0.05) +
+     scale_fill_gradient2(low = 'white', high = '#276fe3',
+                        breaks = c(0,25000,50000,75000,100000))+
+  labs(title = "US Median Income",
+       subtitle = "Median Income at county level")
+
 ```
 
-### Loading in Census Population Data
 
-```{r warning=FALSE, message=FALSE}
-county_population <- read_excel("co-est2019-annres.xlsx", skip = 3) %>% 
-  select(county =...1, population_2017 =`2017`) %>% 
-  separate(county, c("county_name", "state"), sep =", ") %>% 
-  mutate(county_name = str_remove(county_name, "."))
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+
+theme_set(theme_classic())
+
+county_map  %>% 
+ggplot(aes(x=broadband_usage, y=estimate)) +
+  geom_point(alpha = 0.3, color="#93b3e6") +
+  geom_smooth(method = lm) 
+
+county_map2 <- county_map %>% 
+  filter(iso_3166_2 == "AR"|
+         iso_3166_2 == "CT"  )
+
+county_map2 %>% 
+ggplot(aes(x=broadband_usage, y=estimate, color=state.x)) +
+  geom_point() +
+  geom_smooth(method = lm) 
 ```
-
-### Join population data with broadband data
-
-```{r warning=FALSE, message=FALSE}
-broadband_with_population <- broadband_county %>% 
-  inner_join(county_population, by = c("county_name")) 
-
-broadband_county$avail <- as.double(broadband_county$broadband_availability_per_fcc)
-
-broadband_county_sum <- broadband_county %>% 
-  group_by(state) %>%
-  summarise(mean(avail))
-  
-
-```
-
-### Map
-
-```{r  echo=FALSE, warning=FALSE, message=FALSE, }
-states <- states(cb = TRUE)
-
-ggplot() + geom_sf(data = states, color="black",
-                   fill="white", size=0.25)
-```
-
 
