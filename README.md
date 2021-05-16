@@ -6,6 +6,5 @@ A weekly data project aimed at the R ecosystem. As this project was borne out of
 
 I will try to work on every weeks dataset. 
 
-Week 20/2021 - broadband
-
+**Week 20/2021 - broadband**
 ![Test](broadband_plot_1.png "Test")
