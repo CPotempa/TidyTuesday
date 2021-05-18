@@ -7,7 +7,7 @@ A weekly data project aimed at the R ecosystem. As this project was borne out of
 I will try to work on every weeks dataset. 
 
 ## Week 21/2021 - Ask a Manager Salary Survey
-![Test](askamanager_plot1.png "Test")
+![Test](askamanager_plot_1.png "Test")
 
 ## Week 20/2021 - broadband
 ![Test](broadband_plot_1.png "Test")
