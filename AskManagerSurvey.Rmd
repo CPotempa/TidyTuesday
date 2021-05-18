@@ -18,6 +18,8 @@ library(tidytuesdayR)
 library(skimr)
 library(DataExplorer)
 library(explore)
+library(DescTools)
+library(scales)
 
 ```
 
@@ -37,10 +39,37 @@ head(survey)
 #skim(survey)
 #DataExplorer::create_report(survey)
 #explore(`germany_deliveries_timeseries_v2.(1)`)
+head(survey$currency)
+table(survey$currency)
 ```
 
 ```{r}
-#normalizing currencies to EURO / USD
+#normalizing currencies to USD
 
+survey$USD <- 0
+survey$USD[survey$currency == "AUD/NZD"] <- survey$annual_salary[survey$currency == "AUD/NZD"] * 0.78 
+survey$USD[survey$currency == "CAD"] <- survey$annual_salary[survey$currency == "CAD"] * 0.83
+survey$USD[survey$currency == "CHF"] <- survey$annual_salary[survey$currency == "CHF"] * 1.12 
+survey$USD[survey$currency == "EUR"] <- survey$annual_salary[survey$currency == "EUR"] * 1.22
+survey$USD[survey$currency == "GBP"] <- survey$annual_salary[survey$currency == "GBP"] * 1.42
+survey$USD[survey$currency == "HKD"] <- survey$annual_salary[survey$currency == "HKD"] * 0.13
+survey$USD[survey$currency == "JPY"] <- survey$annual_salary[survey$currency == "JPY"] * 0.0092
+survey$USD[survey$currency == "SEK"] <- survey$annual_salary[survey$currency == "SEK"] * 0.12
+survey$USD[survey$currency == "USD"] <- survey$annual_salary[survey$currency == "USD"] * 1
+survey$USD[survey$currency == "ZAR"] <- survey$annual_salary[survey$currency == "ZAR"] * 0.072
+```
+
+
+```{r}
+#which currencies give you the highest salaries and why you wanna live in switzerland
+
+survey %>% 
+  filter(USD > 0 & USD < 500000) %>% 
+  ggplot(aes(x = USD, y=reorder(currency, USD, FUN = median), fill = currency)) + 
+  geom_boxplot() +
+  scale_x_continuous(labels = comma) + 
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired")
+  
 ```
 
